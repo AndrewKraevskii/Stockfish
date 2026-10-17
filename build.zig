@@ -98,26 +98,17 @@ pub fn build(b: *Build) !void {
 
 /// The first time we run "zig build", we need to download the necessary nnue files
 fn downloadNNUE(b: *Build, nnue_file: []const u8) !void {
-    const result = if (@hasDecl(fs, "Dir") and @hasDecl(fs.Dir, "statFile"))
-        fs.cwd().statFile(nnue_file)
-    else
-        Io.Dir.cwd().statFile(b.graph.io, nnue_file, .{});
+    const result = Io.Dir.cwd().statFile(b.graph.io, nnue_file, .{});
 
     _ = result catch |err| switch (err) {
         error.FileNotFound => {
             const url = try fmt.allocPrint(b.allocator, "https://data.stockfishchess.org/nn/{s}", .{nnue_file});
             std.debug.print("No nnue file found, downloading {s}\n\n", .{url});
 
-            if (@hasDecl(std.process, "spawn")) {
-                var child = try std.process.spawn(b.graph.io, .{
-                    .argv = &.{ "curl", "-o", nnue_file, url },
-                });
-                std.debug.assert((try child.wait(b.graph.io)).exited == 0);
-            } else {
-                var child = std.process.Child.init(&.{ "curl", "-o", nnue_file, url }, b.allocator);
-                try child.spawn();
-                _ = try child.wait();
-            }
+            var child = try std.process.spawn(b.graph.io, .{
+                .argv = &.{ "curl", "-o", nnue_file, url },
+            });
+            std.debug.assert((try child.wait(b.graph.io)).exited == 0);
         },
         else => return err,
     };
